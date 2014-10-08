@@ -50,15 +50,16 @@ impl LinearFeedbackShiftRegisterPRNG {
     fn init_seed_info(seed: &Vec<u32>) -> (*mut u32, *mut u32, *mut u32, Vec<u32>, u32) {
         let mut iv = seed.clone();
 
-        let (deg, shift_sep) = match std::mem::size_of_val(&iv) {
-            // x ** 7 + x** 3 + 1
-            x if x < 64 => (7u, 3u),
-            // x**15 + x + 1.
-            x if x < 128 => (15u, 1u),
-            // x**31 + x**3 + 1.
-            x if x < 256 => (31u, 3u),
+        let (deg, shift_sep) = match iv.len() {
             // x**63 + x + 1.  
-            _ => (63u, 1u)
+            x if x >= 64 => (63u, 1u),
+            // x**31 + x**3 + 1.
+            x if x >= 32 => (31u, 3u),
+            // x**15 + x + 1.
+            x if x >= 16 => (15u, 1u),
+            // x ** 7 + x** 3 + 1
+            x if x >= 8 => (7u, 3u),
+            _ => (iv.len() - 1, 0),
         };
 
         for i in range(1u, deg + 1u) {
@@ -66,9 +67,9 @@ impl LinearFeedbackShiftRegisterPRNG {
             *iv.get_mut(i) = word as u32;
         }
 
-        let front_ptr = unsafe{ iv.as_mut_ptr().offset(shift_sep as int) };
-        let rear_ptr = unsafe{ iv.as_mut_ptr().offset(0) };
-        let end_ptr = unsafe{ iv.as_mut_ptr().offset(deg as int) };
+        let front_ptr = unsafe{ iv.as_mut_ptr().offset(deg as int) };
+        let rear_ptr = unsafe{ iv.as_mut_ptr().offset(shift_sep as int) };
+        let end_ptr = unsafe{ iv.as_mut_ptr().offset((iv.len() - 1) as int)};
         (front_ptr, rear_ptr, end_ptr, iv, deg as u32)
     }
 }
@@ -77,7 +78,11 @@ impl Rng for LinearFeedbackShiftRegisterPRNG {
     fn next_u32(&mut self) -> u32 {
         let (mut front_ptr, mut rear_ptr, end_ptr) = (self.front_ptr, self.rear_ptr, self.end_ptr);
 
-        let next_rand: u32 = unsafe{ ((*front_ptr + *rear_ptr) >> 1) & 0x7fffffff };
+        let next_rand: u32;
+        unsafe {
+            *front_ptr += *rear_ptr;
+            next_rand = (*front_ptr >> 1) & 0x7fffffff;
+        }
 
         front_ptr = unsafe{ front_ptr.offset(1) };
         if front_ptr >= end_ptr {
@@ -148,9 +153,9 @@ fn main() {
 
     println!("\n\n");
 
-    let seed: Vec<u32> = range(9, 43).collect();
+    let mut seed = vec![3, 434, 545,45, 5454, 6454, 4545, 232424, 52345235, 35434534, 2342341];
     let mut rng: LinearFeedbackShiftRegisterPRNG = SeedableRng::from_seed(seed);
-    for _ in range(0u, 10) {
+    for _ in range(3u, 20) {
         println!("Rand num {}", rng.next_u32() % 100);
     }
 }
