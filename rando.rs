@@ -105,12 +105,12 @@ impl Rng for LinearFeedbackShiftRegisterPRNG {
 impl SeedableRng<Vec<u32>> for LinearFeedbackShiftRegisterPRNG {
     fn reseed(&mut self, seed: Vec<u32>) {
         let reseed_info = LinearFeedbackShiftRegisterPRNG::init_seed_info(&seed);
-        self.front_ptr = reseed_info.clone().val0();
-        self.rear_ptr = reseed_info.clone().val1();
-        self.end_ptr = reseed_info.clone().val2();
+        self.front_ptr = *reseed_info.ref0();
+        self.rear_ptr = *reseed_info.ref1();
+        self.end_ptr = *reseed_info.ref2();
         self.iv = reseed_info.clone().val3();
 
-        let deg = reseed_info.clone().val4();
+        let deg = reseed_info.ref4();
 
         for _ in range(0, (deg + 1) * 10) {
             let _ = self.next_u32();
@@ -153,9 +153,9 @@ fn main() {
 
     println!("\n\n");
 
-    let mut seed = vec![3, 434, 545,45, 5454, 6454, 4545, 232424, 52345235, 35434534, 2342341];
+    let mut seed: Vec<u32> = range(2, 69).collect();
     let mut rng: LinearFeedbackShiftRegisterPRNG = SeedableRng::from_seed(seed);
-    for _ in range(3u, 20) {
+    for _ in range(3u, 103) {
         println!("Rand num {}", rng.next_u32() % 100);
     }
 }
